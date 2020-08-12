@@ -84,7 +84,7 @@ void split_file(
 
     char c;
     char *str;
-    while (fgets_unlocked(line_buf, 4012, fp))
+    while (fgets(line_buf, 4012, fp))
     {
         str = line_buf;
         unsigned long hash = 5381;
@@ -102,7 +102,7 @@ void split_file(
         // printf("hash %d\n", hash);
         // printf("index %d\n", index);
         unsigned int index = (unsigned int)hash % num_files;
-        fputs_unlocked(line_buf, output_files[index]);
+        fputs(line_buf, output_files[index]);
     }
 
     fclose(fp);

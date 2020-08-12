@@ -35,6 +35,11 @@ void check_file_lines_not_in_set(
     std::vector<std::string> *result
 );
 
+void check_file_lines_not_in_set2(
+    std::filesystem::path changed_file_path,
+    phmap::flat_hash_set<std::string_view> &lines_set,
+    std::vector<std::string> *result);
+
 
 void compute_added_lines(
     std::filesystem::path original_file_path,
@@ -62,6 +67,53 @@ void compute_added_lines(
     );
 
     //std::cout << "total new lines found: " << num_new_found << "\n";
+}
+
+void check_file_lines_not_in_set2(
+    std::filesystem::path changed_file_path,
+    phmap::flat_hash_set<std::string_view> &lines_set,
+    std::vector<std::string> *result
+) {
+    int fd = open(changed_file_path.c_str(), O_RDONLY);
+
+    if (fd == -1) {
+        throw std::exception();
+    }
+
+    char all_buffer[128 * 1024 + MAX_LINE_SIZE];
+    char* buffer = all_buffer + MAX_LINE_SIZE;
+    char *buffer_end = buffer + (128 * 1024);
+
+    // printf("buffer start: %ld\n", buffer);
+    // printf("buffer end  : %ld\n", buffer_end);
+    // printf("buffer size : %d\n", buffer_end - buffer);
+
+    int num_read_bytes;
+    int left_over_length = 0;
+    while ( (num_read_bytes = read(fd, buffer, 128*1024)) > 0 ) {
+        char *start = buffer - left_over_length;
+        char* end;
+
+        //printf("current file position: %ld\n", lseek(fd, 0, SEEK_CUR));
+
+        while (start < buffer_end) {
+            end = (char*)memchr(start, '\n', buffer_end - start);
+            if (end == nullptr) {
+                left_over_length = buffer_end - start;
+                memcpy(buffer - left_over_length, start, left_over_length);
+                break;
+            } else {
+                left_over_length = 0;
+                std::string_view line_sv = std::string_view(start, end - start);
+                bool contained = lines_set.contains(line_sv);
+                if (!contained) {
+                    //std::cout << "found added line: " << line_sv << std::endl;
+                    result->push_back(std::string(line_sv));
+                }
+                start = end + 1;
+            }
+        }
+    }
 }
 
 void check_file_lines_not_in_set(
@@ -113,7 +165,6 @@ void load_lines_from_file_to_set(
         std::string_view line_sv(tmp_line, line.size());
         const auto &[it, inserted] = lines_set.emplace(line_sv);
 
-        // std::cout << "loading: " << line_sv << " " << line_sv.size() << " inserted: " << inserted << "\n";
         std::cout.flush();
 
         if (inserted == false)
@@ -135,7 +186,7 @@ void load_lines_from_file_to_set2(
     char *start = data.data();
     char *end;
 
-    while(start< buffer_end) {
+    while(start < buffer_end) {
         end = strchr(start, '\n');
 
         lines_set.emplace(std::string_view(start, end - start));

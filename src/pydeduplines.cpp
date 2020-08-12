@@ -50,6 +50,7 @@ std::filesystem::path make_part_path(
 
     return part_path;
 }
+
 void compute_added_lines(
     std::filesystem::path original_file_path,
     std::filesystem::path changed_file_path,
@@ -89,8 +90,8 @@ void compute_files_added_lines(
     std::filesystem::path old_file_path,
     std::filesystem::path new_file_path,
     int max_mem_mega_bytes,
-    int num_threads_suggestion)
-{
+    int num_threads_suggestion
+) {
     char dir_tepmlate[] = "./dedup_XXXXXX";
     // std::string tmpdir = mkdtemp(dir_tepmlate);
     std::string tmpdir = "./dedup_big_split";
@@ -109,11 +110,12 @@ void compute_files_added_lines(
 
     std::cout << "num parts: " << num_parts << std::endl;
 
-    // split_files(
-    //     old_file_path,
-    //     new_file_path,
-    //     tmpdir,
-    //     num_parts);
+    split_files(
+        old_file_path,
+        new_file_path,
+        tmpdir,
+        num_parts
+    );
 
     std::vector<std::string> result = compute_parts_added_lines(
         num_threads,
@@ -121,15 +123,8 @@ void compute_files_added_lines(
         num_parts
     );
 
-    std::cout << "result: " << std::endl;
-
-    for (auto &s : result)
-    {
-        std::cout << s << std::endl;
-    }
-
-    rmdir(tmpdir.c_str());
-    std::cout << "deleted tmp dir" << tmpdir << std::endl;
+    // rmdir(tmpdir.c_str());
+    // std::cout << "deleted tmp dir" << tmpdir << std::endl;
 }
 
 std::vector<std::string> compute_parts_added_lines(
@@ -178,10 +173,6 @@ std::vector<std::string> compute_parts_added_lines(
     return results;
 }
 
-
-
-
-
 int get_num_threads(
     int num_threads_suggestion
 ) {
@@ -200,8 +191,7 @@ int compute_num_parts(
     std::filesystem::path old_file_path,
     std::filesystem::path new_file_path,
     int max_mem_mega_bytes
-)
-{
+) {
     auto file_size1 = std::filesystem::file_size(old_file_path);
     auto file_size2 = std::filesystem::file_size(new_file_path);
 
