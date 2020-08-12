@@ -29,6 +29,13 @@ void load_lines_from_file_to_set(
     phmap::flat_hash_set<std::string_view> &lines_set
 );
 
+void check_file_lines_not_in_set(
+    std::filesystem::path changed_file_path,
+    phmap::flat_hash_set<std::string_view> &lines_set,
+    std::vector<std::string> *result
+);
+
+
 void compute_added_lines(
     std::filesystem::path original_file_path,
     std::filesystem::path changed_file_path,
@@ -36,8 +43,6 @@ void compute_added_lines(
 ) {
     // std::cout << "original file: " << original_file_path;
     // std::cout << "changed file: " << changed_file_path;
-
-    char line_buf[MAX_LINE_SIZE] = {};
     phmap::flat_hash_set<std::string_view> lines_set;
     // phmap::parallel_flat_hash_set<std::string_view> lines_set;
     // robin_hood::unordered_set<std::string_view> lines_set;
@@ -50,6 +55,21 @@ void compute_added_lines(
 
     //std::cout << "finished loading to hash set\n";
 
+    check_file_lines_not_in_set(
+        changed_file_path,
+        lines_set,
+        result
+    );
+
+    //std::cout << "total new lines found: " << num_new_found << "\n";
+}
+
+void check_file_lines_not_in_set(
+    std::filesystem::path changed_file_path,
+    phmap::flat_hash_set<std::string_view> &lines_set,
+    std::vector<std::string> *result
+)
+{
     FILE *change_file = fopen(changed_file_path.c_str(), "r");
     if (!change_file)
     {
@@ -58,6 +78,8 @@ void compute_added_lines(
     }
 
     int num_new_found = 0;
+
+    char line_buf[MAX_LINE_SIZE] = {};
 
     size_t len_line;
     while (fgets(line_buf, MAX_LINE_SIZE, change_file))
@@ -74,8 +96,6 @@ void compute_added_lines(
             result->push_back(std::string(line_sv));
         }
     }
-
-    //std::cout << "total new lines found: " << num_new_found << "\n";
 }
 
 void load_lines_from_file_to_set(
