@@ -12,7 +12,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "robin_hood.h"
 #include "parallel_hashmap/phmap.h"
 
 #define MAX_LINE_SIZE 1024

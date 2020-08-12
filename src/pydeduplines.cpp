@@ -93,8 +93,8 @@ void compute_files_added_lines(
     int num_threads_suggestion
 ) {
     char dir_tepmlate[] = "./dedup_XXXXXX";
-    // std::string tmpdir = mkdtemp(dir_tepmlate);
-    std::string tmpdir = "./dedup_big_split";
+    std::string tmpdir = mkdtemp(dir_tepmlate);
+    // std::string tmpdir = "./dedup_big_split";
 
     std::cout << "created tmp dir" << tmpdir << std::endl;
 
