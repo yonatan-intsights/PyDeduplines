@@ -43,7 +43,7 @@ setuptools.setup(
                 '-Wno-unknown-pragmas',
                 '-Wno-class-memaccess',
             ],
-            extra_link_args=['-lpthread', '-lboost_thread', '-ltbb'],
+            extra_link_args=['-lpthread', '-ltbb'],
             include_dirs=[
                 'src',
             ]

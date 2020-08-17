@@ -9,9 +9,8 @@
 #include <filesystem>
 #include <thread>
 
-#include <boost/asio/thread_pool.hpp>
-#include <boost/asio/post.hpp>
-#include <boost/thread.hpp>
+#include <taskflow/taskflow.hpp>
+
 
 void split_files(
     std::filesystem::path old_file_path,
@@ -133,7 +132,7 @@ std::vector<std::string> compute_parts_added_lines(
     std::string work_directory,
     int num_parts
 ) {
-    boost::asio::thread_pool diff_pool(num_threads);
+    tf::Taskflow taskflow;
 
     std::vector<std::vector<std::string>> parts_results(num_parts);
 
@@ -151,12 +150,15 @@ std::vector<std::string> compute_parts_added_lines(
             "new_",
             i);
 
-        boost::asio::post(diff_pool, [old_file_part_path, new_file_part_path, &parts_results, i] {
-            compute_added_lines(old_file_part_path, new_file_part_path, parts_results[i]);
-        });
+        taskflow.emplace(
+            [old_file_part_path, new_file_part_path, &parts_results, i] {
+                compute_added_lines(old_file_part_path, new_file_part_path, parts_results[i]);
+            });
     }
 
-    diff_pool.join();
+    tf::Executor executor(num_threads);
+    executor.run(taskflow).wait();
+
     // std::cout << "ended diffing" << std::endl;
 
     // std::cout << "collecting result" << std::endl;
@@ -190,7 +192,7 @@ int get_num_threads(
     if (num_threads_suggestion != -1)
         return num_threads_suggestion;
 
-    const auto processor_count = boost::thread::physical_concurrency();
+    const auto processor_count = std::thread::hardware_concurrency();
 
     // std::cout << "number of available cores is: " << processor_count << std::endl;
 

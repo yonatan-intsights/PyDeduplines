@@ -10,6 +10,8 @@
 #include <boost/asio/thread_pool.hpp>
 #include <boost/asio/post.hpp>
 
+#include <taskflow/taskflow.hpp>
+
 
 void split_file(
     std::filesystem::path input_file_path,
@@ -37,11 +39,11 @@ void split_files(
     std::filesystem::path output_directory,
     int num_parts
 ) {
-    boost::asio::thread_pool split_pool(2);
+    tf::Taskflow taskflow;
 
     // std::cout << "started splitting" << std::endl;
 
-    boost::asio::post(split_pool, [old_file_path, output_directory, num_parts] {
+    taskflow.emplace([old_file_path, output_directory, num_parts] {
         char file_prefix[] = "old_";
 
         std::vector<FILE *> output_files = create_split_output_files(
@@ -54,7 +56,7 @@ void split_files(
         close_files(output_files);
     });
 
-    boost::asio::post(split_pool, [new_file_path, output_directory, num_parts] {
+    taskflow.emplace([new_file_path, output_directory, num_parts] {
         char file_prefix[] = "new_";
 
         std::vector<FILE *> output_files = create_split_output_files(
@@ -67,7 +69,8 @@ void split_files(
         close_files(output_files);
     });
 
-    split_pool.join();
+    tf::Executor executor(2);
+    executor.run(taskflow).wait();
 
     // std::cout << "ended splitting" << std::endl;
 }
