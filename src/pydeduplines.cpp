@@ -171,7 +171,7 @@ std::vector<std::string> compute_parts_added_lines(
 
     std::vector<std::string> results;
 
-    for (int i = 0; i < parts_results.size(); i++)
+    for (long unsigned int i = 0; i < parts_results.size(); i++)
     {
         for (std::string& s: parts_results[i]) {
             results.push_back(s);

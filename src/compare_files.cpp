@@ -38,8 +38,6 @@ void compute_added_lines(
 
     read_file(original_file_path, original_file_data);
 
-    auto file_size = std::filesystem::file_size(original_file_path);
-
     int num_lines = std::count(original_file_data.begin(), original_file_data.end(), '\n');
 
     phmap::flat_hash_set<std::string_view> lines_set(num_lines);

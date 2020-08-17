@@ -120,7 +120,7 @@ void close_files(
     std::vector<FILE *> files
 )
 {
-    for (int i = 0; i < files.size(); i++)
+    for (long unsigned int i = 0; i < files.size(); i++)
     {
         fclose(files[i]);
         files[i] = nullptr;
