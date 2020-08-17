@@ -11,10 +11,6 @@
 #include <boost/asio/thread_pool.hpp>
 #include <boost/asio/post.hpp>
 
-#include "mimalloc/static.c"
-#include "mimalloc/include/mimalloc-override.h"
-#include "mimalloc/include/mimalloc-new-delete.h"
-
 void split_files(
     std::filesystem::path old_file_path,
     std::filesystem::path new_file_path,

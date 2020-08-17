@@ -1,3 +1,4 @@
+#include <execution>
 #include <fstream>
 #include <string>
 #include <string_view>
@@ -45,15 +46,17 @@ void compute_added_lines(
     std::filesystem::path changed_file_path,
     std::vector<std::string> *result
 ) {
-    // std::cout << "original file: " << original_file_path;
-    // std::cout << "changed file: " << changed_file_path;
-    phmap::flat_hash_set<std::string_view> lines_set;
-    // phmap::parallel_flat_hash_set<std::string_view> lines_set;
-    // robin_hood::unordered_set<std::string_view> lines_set;
+    std::vector<char>* original_file_data = read_file(original_file_path);
 
-    std::vector<char> *buffer = read_file(original_file_path);
+    int num_lines = std::count(std::execution::par, original_file_data->begin(), original_file_data->end(), '\n');
 
-    load_lines_from_file_to_set2(*buffer, lines_set);
+    // std::cout << "num lines" << std::endl;
+
+    phmap::flat_hash_set<std::string_view> lines_set(num_lines);
+
+    // std::vector<char> *buffer = read_file(original_file_path);
+
+    load_lines_from_file_to_set2(*original_file_data, lines_set);
 
     // load_lines_from_file_to_set(original_file_path, lines_set);
 
@@ -206,8 +209,10 @@ std::vector<char>* read_file(std::filesystem::path path) {
 
     int num_read_bytes;
 
-    while ( (num_read_bytes = read(fd, buffer->data() + index, 128 * 1024)) > 0) {
+    int num_bytes_left = file_size;
+    while ( (num_read_bytes = read(fd, buffer->data() + index, std::min(128 * 1024, num_bytes_left))) > 0) {
         index += num_read_bytes;
+        num_bytes_left -= num_read_bytes;
     }
 
     if (num_read_bytes == -1) {
