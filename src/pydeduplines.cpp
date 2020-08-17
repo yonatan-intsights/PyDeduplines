@@ -205,8 +205,8 @@ int compute_num_parts(
     auto file_size1 = std::filesystem::file_size(old_file_path);
     auto file_size2 = std::filesystem::file_size(new_file_path);
 
-    std::cout << "The size of " << old_file_path.u8string() << " is " << file_size1 << " bytes.\n";
-    std::cout << "The size of " << new_file_path.u8string() << " is " << file_size2 << " bytes.\n";
+    std::cout << "The size of " << old_file_path.string() << " is " << file_size1 << " bytes.\n";
+    std::cout << "The size of " << new_file_path.string() << " is " << file_size2 << " bytes.\n";
 
     int num_parts = num_threads * 2 * (std::max(file_size1, file_size2) / (max_mem_mega_bytes));
 
