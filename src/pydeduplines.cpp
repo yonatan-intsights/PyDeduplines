@@ -50,7 +50,7 @@ std::filesystem::path make_part_path(
 void compute_added_lines(
     std::filesystem::path original_file_path,
     std::filesystem::path changed_file_path,
-    std::vector<std::string> *result
+    std::vector<std::string>& result
 );
 
 void compute_files_added_lines(
@@ -141,15 +141,13 @@ std::vector<std::string> compute_parts_added_lines(
             i
         );
 
-        std::vector<std::string>* result = &parts_results[i];
-
         std::filesystem::path new_file_part_path = make_part_path(
             work_directory,
             "new_",
             i);
 
-        boost::asio::post(diff_pool, [=] {
-            compute_added_lines(old_file_part_path, new_file_part_path, result);
+        boost::asio::post(diff_pool, [old_file_part_path, new_file_part_path, &parts_results, i] {
+            compute_added_lines(old_file_part_path, new_file_part_path, parts_results[i]);
         });
     }
 
@@ -157,14 +155,31 @@ std::vector<std::string> compute_parts_added_lines(
     std::cout << "ended diffing" << std::endl;
 
     std::cout << "collecting result" << std::endl;
-    std::vector<std::string> results;
 
+    int total_num_results = 0;
     for (int i = 0; i < num_parts; i++) {
+        total_num_results += parts_results[i].size();
+    }
+    std::cout << "total num results: " << total_num_results << std::endl;
+
+    std::vector<std::string> results(total_num_results);
+
+    for (int i = parts_results.size() - 1 ; i >= 0; i--)
+    {
         for (std::string& s: parts_results[i]) {
             results.push_back(s);
         }
+
+        parts_results.pop_back();
     }
-    std::cout << "finished collecting result" << std::endl;
+    std::cout << "finished collecting result:" << std::endl;
+
+    int total_size = 0;
+    for (auto &s: results) {
+        total_size += s.size();
+    }
+
+    std::cout << "total strings size: " << total_size << std::endl;
 
     return results;
 }

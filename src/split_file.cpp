@@ -1,4 +1,5 @@
 #include <fstream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -81,6 +82,10 @@ void split_file(
     int num_files = output_files.size();
 
     FILE *fp = fopen(input_file_path.c_str(), "r");
+    if (fp == NULL) {
+        std::cout << "failed to open file: " << input_file_path << std::endl << "Errno: " << errno << std::endl;
+        throw std::runtime_error("failed to open file");
+    }
 
     char c;
     char *str;

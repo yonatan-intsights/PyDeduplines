@@ -17,50 +17,35 @@
 
 #define MAX_LINE_SIZE 1024
 
-std::vector<char>* read_file(std::filesystem::path path);
-
-void load_lines_from_file_to_set2(
-    std::vector<char>& data,
-    phmap::flat_hash_set<std::string_view> &lines_set
-);
+void read_file(std::filesystem::path path, std::vector<char>& buffer);
 
 void load_lines_from_file_to_set(
-    std::filesystem::path input_file_path,
+    std::vector<char>& data,
     phmap::flat_hash_set<std::string_view> &lines_set
 );
 
 void check_file_lines_not_in_set(
     std::filesystem::path changed_file_path,
     phmap::flat_hash_set<std::string_view> &lines_set,
-    std::vector<std::string> *result
+    std::vector<std::string>& result
 );
-
-void check_file_lines_not_in_set2(
-    std::filesystem::path changed_file_path,
-    phmap::flat_hash_set<std::string_view> &lines_set,
-    std::vector<std::string> *result);
-
 
 void compute_added_lines(
     std::filesystem::path original_file_path,
     std::filesystem::path changed_file_path,
-    std::vector<std::string> *result
+    std::vector<std::string>& result
 ) {
-    std::vector<char>* original_file_data = read_file(original_file_path);
+    std::vector<char> original_file_data;
 
-    int num_lines = std::count(std::execution::par, original_file_data->begin(), original_file_data->end(), '\n');
+    read_file(original_file_path, original_file_data);
 
-    // std::cout << "num lines" << std::endl;
+    auto file_size = std::filesystem::file_size(original_file_path);
+
+    int num_lines = std::count(std::execution::par, original_file_data.begin(), original_file_data.end(), '\n');
 
     phmap::flat_hash_set<std::string_view> lines_set(num_lines);
 
-    // std::vector<char> *buffer = read_file(original_file_path);
-
-    load_lines_from_file_to_set2(*original_file_data, lines_set);
-
-    // load_lines_from_file_to_set(original_file_path, lines_set);
-
-    //std::cout << "finished loading to hash set\n";
+    load_lines_from_file_to_set(original_file_data, lines_set);
 
     check_file_lines_not_in_set(
         changed_file_path,
@@ -68,67 +53,19 @@ void compute_added_lines(
         result
     );
 
-    //std::cout << "total new lines found: " << num_new_found << "\n";
-}
-
-void check_file_lines_not_in_set2(
-    std::filesystem::path changed_file_path,
-    phmap::flat_hash_set<std::string_view> &lines_set,
-    std::vector<std::string> *result
-) {
-    int fd = open(changed_file_path.c_str(), O_RDONLY);
-
-    if (fd == -1) {
-        throw std::exception();
-    }
-
-    char all_buffer[128 * 1024 + MAX_LINE_SIZE];
-    char* buffer = all_buffer + MAX_LINE_SIZE;
-    char *buffer_end = buffer + (128 * 1024);
-
-    // printf("buffer start: %ld\n", buffer);
-    // printf("buffer end  : %ld\n", buffer_end);
-    // printf("buffer size : %d\n", buffer_end - buffer);
-
-    int num_read_bytes;
-    int left_over_length = 0;
-    while ( (num_read_bytes = read(fd, buffer, 128*1024)) > 0 ) {
-        char *start = buffer - left_over_length;
-        char* end;
-
-        //printf("current file position: %ld\n", lseek(fd, 0, SEEK_CUR));
-
-        while (start < buffer_end) {
-            end = (char*)memchr(start, '\n', buffer_end - start);
-            if (end == nullptr) {
-                left_over_length = buffer_end - start;
-                memcpy(buffer - left_over_length, start, left_over_length);
-                break;
-            } else {
-                left_over_length = 0;
-                std::string_view line_sv = std::string_view(start, end - start);
-                bool contained = lines_set.contains(line_sv);
-                if (!contained) {
-                    //std::cout << "found added line: " << line_sv << std::endl;
-                    result->push_back(std::string(line_sv));
-                }
-                start = end + 1;
-            }
-        }
-    }
 }
 
 void check_file_lines_not_in_set(
     std::filesystem::path changed_file_path,
     phmap::flat_hash_set<std::string_view> &lines_set,
-    std::vector<std::string> *result
+    std::vector<std::string>& result
 )
 {
     FILE *change_file = fopen(changed_file_path.c_str(), "r");
     if (!change_file)
     {
         std::cout << "file not opened: " << changed_file_path << std::endl;
-        return;
+        throw std::runtime_error("fail to open file");
     }
 
     int num_new_found = 0;
@@ -142,43 +79,16 @@ void check_file_lines_not_in_set(
         std::string_view line_sv(line_buf, len_line);
 
         bool contained = lines_set.contains(line_sv);
-        if (!contained)
-        {
+        if (!contained) {
             num_new_found += 1;
-
-            //std::cout << "found added line: " << line_sv << std::endl;
-            result->push_back(std::string(line_sv));
+            result.push_back(std::string(line_sv));
         }
     }
+
+    fclose(change_file);
 }
 
 void load_lines_from_file_to_set(
-    std::filesystem::path input_file_path,
-    phmap::flat_hash_set<std::string_view> &lines_set
-)
-{
-    std::ifstream input_file(input_file_path);
-    std::string line;
-
-    while (std::getline(input_file, line))
-    {
-        char *tmp_line = new char[line.size()];
-        std::copy(line.begin(), line.end(), tmp_line);
-        std::string_view line_sv(tmp_line, line.size());
-        const auto &[it, inserted] = lines_set.emplace(line_sv);
-
-        std::cout.flush();
-
-        if (inserted == false)
-        {
-            delete[] tmp_line;
-        }
-    }
-
-    input_file.close();
-}
-
-void load_lines_from_file_to_set2(
     std::vector<char>& data,
     phmap::flat_hash_set<std::string_view> &lines_set
 ) {
@@ -190,18 +100,17 @@ void load_lines_from_file_to_set2(
 
     while(start < buffer_end) {
         end = strchr(start, '\n');
-
         lines_set.emplace(std::string_view(start, end - start));
 
         start = end + 1;
     };
 }
 
-std::vector<char>* read_file(std::filesystem::path path) {
-
+void read_file(std::filesystem::path path, std::vector<char>& buffer)
+{
     auto file_size = std::filesystem::file_size(path);
 
-    std::vector<char>* buffer = new std::vector<char>(file_size);
+    buffer.resize(file_size);
 
     int fd = open(path.c_str(), O_RDONLY);
 
@@ -210,7 +119,7 @@ std::vector<char>* read_file(std::filesystem::path path) {
     int num_read_bytes;
 
     int num_bytes_left = file_size;
-    while ( (num_read_bytes = read(fd, buffer->data() + index, std::min(128 * 1024, num_bytes_left))) > 0) {
+    while ( (num_read_bytes = read(fd, buffer.data() + index, std::min(128 * 1024, num_bytes_left))) > 0) {
         index += num_read_bytes;
         num_bytes_left -= num_read_bytes;
     }
@@ -222,29 +131,5 @@ std::vector<char>* read_file(std::filesystem::path path) {
 
     close(fd);
 
-    return buffer;
+    return;
 }
-
-///////////////////
-
-void test_load_lines_from_file_to_set() {
-    std::vector<char> *buffer = read_file("data/small_new");
-
-    phmap::flat_hash_set<std::string_view> lines_set;
-    load_lines_from_file_to_set2(*buffer, lines_set);
-
-    for (auto& o : lines_set) {
-        std::cout << o << std::endl;
-    }
-}
-
-void test_read_file() {
-    std::vector<char>* buffer = read_file("data/small_new");
-
-    std::cout << buffer->data();
-}
-
-// int main() {
-//     test_load_lines_from_file_to_set();
-//     // test_read_file();
-// }
