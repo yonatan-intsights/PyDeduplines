@@ -22,7 +22,7 @@ setuptools.setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
     ],
-    keywords='duplicates lines mimalloc hashmap hashset sort uniq unique c++',
+    keywords='diff lines mimalloc hashmap hashset sort uniq unique c++',
     python_requires='>=3.6',
     zip_safe=False,
     package_data={},
@@ -33,7 +33,7 @@ setuptools.setup(
             sources=glob.glob(
                 pathname=os.path.join(
                     'src',
-                    'pydeduplines.cpp',
+                    '*.cpp',
                 ),
             ),
             language='c++',
@@ -43,10 +43,9 @@ setuptools.setup(
                 '-Wno-unknown-pragmas',
                 '-Wno-class-memaccess',
             ],
-            extra_link_args=[],
+            extra_link_args=['-lpthread', '-lboost_thread', '-ltbb'],
             include_dirs=[
                 'src',
-                'src/mimalloc/include',
             ]
         ),
     ],

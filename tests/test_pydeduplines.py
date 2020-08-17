@@ -13,67 +13,42 @@ class PyDeduplinesTestCase(
         self,
     ):
         with contextlib.ExitStack() as stack:
-            test_input_file_one = stack.enter_context(tempfile.NamedTemporaryFile('w'))
-            test_input_file_two = stack.enter_context(tempfile.NamedTemporaryFile('w'))
-            test_output_file_one = stack.enter_context(tempfile.NamedTemporaryFile('r'))
-            test_output_file_two = stack.enter_context(tempfile.NamedTemporaryFile('r'))
+            file1 = stack.enter_context(tempfile.NamedTemporaryFile('w'))
+            file2 = stack.enter_context(tempfile.NamedTemporaryFile('w'))
 
-            test_input_file_one.file.write(
+            file1.file.write(
+                'line2\n'
+                'line4\n'
+                'line6\n'
+                'line8\n'
+            )
+            file1.file.flush()
+
+            file2.file.write(
                 'line1\n'
                 'line2\n'
-                'line3\n'
-                'line1\n'
                 'line3\n'
                 'line4\n'
-                'line1\n'
-            )
-            test_input_file_one.file.flush()
-            test_input_file_two.file.write(
-                'line1\n'
-                'line2\n'
-                'line3\n'
                 'line5\n'
-                'line1\n'
-                'line3\n'
-                'line4\n'
-                'line1\n'
+                'line6\n'
+                'line7\n'
             )
-            test_input_file_two.file.flush()
+            file2.file.flush()
 
-            pydeduplines.deduplicate_lines(
-                input_files_paths=[
-                    test_input_file_one.name,
-                ],
-                output_file_path=test_output_file_one.name,
+            result = pydeduplines.compute_files_added_lines(
+                original_file_path=file1.name,
+                new_file_path=file2.name,
+                memory_usage=3,
+                num_threads=-1,
             )
 
-            deduped_file_data = test_output_file_one.read()
+            expected = [
+                'line1',
+                'line3',
+                'line5',
+                'line7',
+            ]
             self.assertEqual(
-                first=deduped_file_data,
-                second=(
-                    'line1\n'
-                    'line2\n'
-                    'line3\n'
-                    'line4\n'
-                ),
-            )
-
-            pydeduplines.deduplicate_lines(
-                input_files_paths=[
-                    test_input_file_one.name,
-                    test_input_file_two.name,
-                ],
-                output_file_path=test_output_file_two.name,
-            )
-
-            deduped_file_data = test_output_file_two.read()
-            self.assertEqual(
-                first=deduped_file_data,
-                second=(
-                    'line1\n'
-                    'line2\n'
-                    'line3\n'
-                    'line4\n'
-                    'line5\n'
-                ),
+                first=expected,
+                second=result,
             )

@@ -39,7 +39,7 @@ void split_files(
 ) {
     boost::asio::thread_pool split_pool(2);
 
-    std::cout << "started splitting" << std::endl;
+    // std::cout << "started splitting" << std::endl;
 
     boost::asio::post(split_pool, [old_file_path, output_directory, num_parts] {
         char file_prefix[] = "old_";
@@ -69,7 +69,7 @@ void split_files(
 
     split_pool.join();
 
-    std::cout << "ended splitting" << std::endl;
+    // std::cout << "ended splitting" << std::endl;
 }
 
 void split_file(
