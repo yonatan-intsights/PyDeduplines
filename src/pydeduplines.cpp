@@ -90,7 +90,6 @@ void compute_files_added_lines(
 ) {
     char dir_tepmlate[] = "./dedup_XXXXXX";
     std::string tmpdir = mkdtemp(dir_tepmlate);
-    // std::string tmpdir = "./dedup_big_split";
 
     std::cout << "created tmp dir" << tmpdir << std::endl;
 
@@ -119,8 +118,8 @@ void compute_files_added_lines(
         num_parts
     );
 
-    // rmdir(tmpdir.c_str());
-    // std::cout << "deleted tmp dir" << tmpdir << std::endl;
+    std::filesystem::remove_all(std::filesystem::path(tmpdir));
+    std::cout << "deleted tmp dir" << tmpdir << std::endl;
 }
 
 std::vector<std::string> compute_parts_added_lines(
@@ -164,7 +163,7 @@ std::vector<std::string> compute_parts_added_lines(
 
     std::vector<std::string> results(total_num_results);
 
-    for (int i = parts_results.size() - 1 ; i >= 0; i--)
+    for (int i = parts_results.size() - 1; i >= 0; i--)
     {
         for (std::string& s: parts_results[i]) {
             results.push_back(s);
