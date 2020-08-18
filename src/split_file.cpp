@@ -41,7 +41,7 @@ void split_files(
 ) {
     tf::Taskflow taskflow;
 
-    // std::cout << "started splitting" << std::endl;
+
 
     taskflow.emplace([old_file_path, output_directory, num_parts] {
         char file_prefix[] = "old_";
@@ -71,8 +71,6 @@ void split_files(
 
     tf::Executor executor(2);
     executor.run(taskflow).wait();
-
-    // std::cout << "ended splitting" << std::endl;
 }
 
 void split_file(

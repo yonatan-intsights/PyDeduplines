@@ -14,20 +14,11 @@
 
 #include "parallel_hashmap/phmap.h"
 
+#include "compare_files.hpp"
+
+
 #define MAX_LINE_SIZE 1024
 
-void read_file(std::filesystem::path path, std::vector<char>& buffer);
-
-void load_lines_from_file_to_set(
-    std::vector<char>& data,
-    phmap::flat_hash_set<std::string_view> &lines_set
-);
-
-void check_file_lines_not_in_set(
-    std::filesystem::path changed_file_path,
-    phmap::flat_hash_set<std::string_view> &lines_set,
-    std::vector<std::string>& result
-);
 
 void compute_added_lines(
     std::filesystem::path original_file_path,
@@ -61,7 +52,6 @@ void check_file_lines_not_in_set(
     FILE *change_file = fopen(changed_file_path.c_str(), "r");
     if (!change_file)
     {
-        // std::cout << "file not opened: " << changed_file_path << std::endl;
         throw std::runtime_error("fail to open file");
     }
 
@@ -73,7 +63,6 @@ void check_file_lines_not_in_set(
     while (fgets(line_buf, MAX_LINE_SIZE, change_file))
     {
         len_line = strlen(line_buf) - 1;
-        // std::cout << "len line:" << len_line << std::endl;
 
         std::string_view line_sv(line_buf, len_line);
 

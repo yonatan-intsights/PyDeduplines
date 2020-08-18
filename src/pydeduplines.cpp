@@ -11,29 +11,9 @@
 
 #include <taskflow/taskflow.hpp>
 
+#include <split_file.hpp>
+#include <pydeduplines.hpp>
 
-void split_files(
-    std::filesystem::path old_file_path,
-    std::filesystem::path new_file_path,
-    std::filesystem::path output_directory,
-    int num_parts
-);
-
-int get_num_threads(
-    int num_threads_suggestion
-);
-
-int compute_num_parts(
-    int num_threads,
-    std::filesystem::path old_file_path,
-    std::filesystem::path new_file_path,
-    int max_mem_mega_bytes
-);
-std::vector<std::string> compute_parts_added_lines(
-    int num_threads,
-    std::string work_directory,
-    int num_parts
-);
 
 std::filesystem::path make_part_path(
     std::filesystem::path output_directory,
@@ -55,38 +35,12 @@ void compute_added_lines(
 );
 
 std::vector<std::string> compute_files_added_lines(
-    std::string old_file_path,
-    std::string new_file_path,
-    int max_mem_mega_bytes,
-    int max_threads);
-
-int main(int argc, char **argv)
-{
-    if (argc != 5) {
-        std::cout << "usage: oldfile newfile MBs num_threads";
-        return -1;
-    }
-
-    char* old_file_path = argv[1];
-    char* new_file_path = argv[2];
-    int max_mem_mbs = std::atoi(argv[3]);
-    int num_threads = std::atoi(argv[4]);
-
-    compute_files_added_lines(
-        old_file_path,
-        new_file_path,
-        max_mem_mbs,
-        num_threads
-    );
-
-    return 0;
-}
-
-std::vector<std::string> compute_files_added_lines(
     std::string _old_file_path,
     std::string _new_file_path,
+    //std::string output_file_path,
     int max_mem_mega_bytes,
-    int num_threads_suggestion)
+    int num_threads_suggestion
+)
 {
     std::filesystem::path old_file_path(_old_file_path);
     std::filesystem::path new_file_path(_new_file_path);
@@ -94,19 +48,13 @@ std::vector<std::string> compute_files_added_lines(
     char dir_tepmlate[] = "./dedup_XXXXXX";
     std::string tmpdir = mkdtemp(dir_tepmlate);
 
-    // std::cout << "created tmp dir" << tmpdir << std::endl;
-
     int num_threads = get_num_threads(num_threads_suggestion);
-
-    // std::cout << "num threads chosen: " << num_threads << std::endl;
 
     int num_parts = compute_num_parts(
         num_threads,
         old_file_path,
         new_file_path,
         max_mem_mega_bytes);
-
-    // std::cout << "num parts: " << num_parts << std::endl;
 
     split_files(
         old_file_path,
@@ -122,7 +70,6 @@ std::vector<std::string> compute_files_added_lines(
     );
 
     std::filesystem::remove_all(std::filesystem::path(tmpdir));
-    // std::cout << "deleted tmp dir" << tmpdir << std::endl;
 
     return result;
 }
@@ -135,8 +82,6 @@ std::vector<std::string> compute_parts_added_lines(
     tf::Taskflow taskflow;
 
     std::vector<std::vector<std::string>> parts_results(num_parts);
-
-    // std::cout << "started diffing" << std::endl;
 
     for (int i = 0; i < num_parts; i++) {
         std::filesystem::path old_file_part_path = make_part_path(
@@ -159,15 +104,10 @@ std::vector<std::string> compute_parts_added_lines(
     tf::Executor executor(num_threads);
     executor.run(taskflow).wait();
 
-    // std::cout << "ended diffing" << std::endl;
-
-    // std::cout << "collecting result" << std::endl;
-
     int total_num_results = 0;
     for (int i = 0; i < num_parts; i++) {
         total_num_results += parts_results[i].size();
     }
-    // std::cout << "total num results: " << total_num_results << std::endl;
 
     std::vector<std::string> results;
 
@@ -179,9 +119,6 @@ std::vector<std::string> compute_parts_added_lines(
 
         parts_results.erase(parts_results.begin() + i);
     }
-    // std::cout << "finished collecting result:" << std::endl;
-
-    // std::cout << "num elements: " << results.size() << std::endl;
 
     return results;
 }
@@ -194,8 +131,6 @@ int get_num_threads(
 
     const auto processor_count = std::thread::hardware_concurrency();
 
-    // std::cout << "number of available cores is: " << processor_count << std::endl;
-
     return processor_count;
 }
 
@@ -207,9 +142,6 @@ int compute_num_parts(
 ) {
     auto file_size1 = std::filesystem::file_size(old_file_path);
     auto file_size2 = std::filesystem::file_size(new_file_path);
-
-    // std::cout << "The size of " << old_file_path.string() << " is " << file_size1 << " bytes.\n";
-    // std::cout << "The size of " << new_file_path.string() << " is " << file_size2 << " bytes.\n";
 
     int num_parts = num_threads * 2 * (std::max(file_size1, file_size2) / (max_mem_mega_bytes));
 
