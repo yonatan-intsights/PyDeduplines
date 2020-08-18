@@ -15,6 +15,7 @@ class PyDeduplinesTestCase(
         with contextlib.ExitStack() as stack:
             file1 = stack.enter_context(tempfile.NamedTemporaryFile('w'))
             file2 = stack.enter_context(tempfile.NamedTemporaryFile('w'))
+            output_file = stack.enter_context(tempfile.NamedTemporaryFile('r'))
 
             file1.file.write(
                 'line2\n'
@@ -35,20 +36,24 @@ class PyDeduplinesTestCase(
             )
             file2.file.flush()
 
-            result = pydeduplines.compute_files_added_lines(
+            pydeduplines.compute_files_added_lines(
                 original_file_path=file1.name,
-                new_file_path=file2.name,
+                changed_file_path=file2.name,
+                output_file_path=output_file.name,
                 memory_usage=3,
                 num_threads=-1,
             )
 
+            lines = output_file.readlines()
+            print(lines)
+
             expected = [
-                'line1',
-                'line3',
-                'line5',
-                'line7',
+                'line1\n',
+                'line3\n',
+                'line5\n',
+                'line7\n',
             ]
             self.assertEqual(
                 first=expected,
-                second=result,
+                second=lines,
             )

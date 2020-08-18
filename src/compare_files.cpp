@@ -17,13 +17,13 @@
 #include "compare_files.hpp"
 
 
-#define MAX_LINE_SIZE 1024
+#define MAX_LINE_SIZE 2048
 
 
 void compute_added_lines(
     std::filesystem::path original_file_path,
     std::filesystem::path changed_file_path,
-    std::vector<std::string>& result
+    FILE* output_file
 ) {
     std::vector<char> original_file_data;
 
@@ -35,20 +35,47 @@ void compute_added_lines(
 
     load_lines_from_file_to_set(original_file_data, lines_set);
 
-    check_file_lines_not_in_set(
+    write_file_lines_not_in_set_to_file(
         changed_file_path,
         lines_set,
-        result
-    );
+        output_file);
+}
 
+void write_file_lines_not_in_set_to_file(
+    std::filesystem::path file_path,
+    phmap::flat_hash_set<std::string_view> &lines_set,
+    FILE* output
+)
+{
+    FILE *change_file = fopen(file_path.c_str(), "r");
+    if (!change_file)
+    {
+        throw std::runtime_error("fail to open file");
+    }
+
+    char line_buf[MAX_LINE_SIZE] = {};
+
+    size_t len_line;
+    while (fgets(line_buf, MAX_LINE_SIZE, change_file))
+    {
+        len_line = strlen(line_buf) - 1;
+
+        std::string_view line_sv(line_buf, len_line);
+
+        bool contained = lines_set.contains(line_sv);
+        if (!contained) {
+            fputs(line_sv.data(), output);
+        }
+    }
+
+    fclose(change_file);
 }
 
 void check_file_lines_not_in_set(
     std::filesystem::path changed_file_path,
     phmap::flat_hash_set<std::string_view> &lines_set,
     std::vector<std::string>& result
-)
-{
+) {
     FILE *change_file = fopen(changed_file_path.c_str(), "r");
     if (!change_file)
     {

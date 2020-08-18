@@ -95,18 +95,14 @@ void split_file(
         str = line_buf;
         unsigned long hash = 5381;
 
-        // printf("line: %s", str);
         c = *str;
         while (c && c != '\n')
         {
-            //printf("char: %c %d\n", c, int(c));
             hash = ((hash << 5) + hash) + c;
             str++;
             c = *str;
         }
 
-        // printf("hash %d\n", hash);
-        // printf("index %d\n", index);
         unsigned int index = (unsigned int)hash % num_files;
         fputs(line_buf, output_files[index]);
     }

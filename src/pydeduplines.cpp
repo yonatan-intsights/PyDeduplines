@@ -12,6 +12,7 @@
 #include <taskflow/taskflow.hpp>
 
 #include <split_file.hpp>
+#include <compare_files.hpp>
 #include <pydeduplines.hpp>
 
 
@@ -28,22 +29,16 @@ std::filesystem::path make_part_path(
     return part_path;
 }
 
-void compute_added_lines(
-    std::filesystem::path original_file_path,
-    std::filesystem::path changed_file_path,
-    std::vector<std::string>& result
-);
-
-std::vector<std::string> compute_files_added_lines(
+void compute_files_added_lines(
     std::string _old_file_path,
     std::string _new_file_path,
-    //std::string output_file_path,
+    std::string _output_file_path,
     int max_mem_mega_bytes,
-    int num_threads_suggestion
-)
+    int num_threads_suggestion)
 {
     std::filesystem::path old_file_path(_old_file_path);
     std::filesystem::path new_file_path(_new_file_path);
+    std::filesystem::path output_file_path(_output_file_path);
 
     char dir_tepmlate[] = "./dedup_XXXXXX";
     std::string tmpdir = mkdtemp(dir_tepmlate);
@@ -63,25 +58,29 @@ std::vector<std::string> compute_files_added_lines(
         num_parts
     );
 
-    std::vector<std::string> result = compute_parts_added_lines(
+    compute_parts_added_lines(
         num_threads,
         tmpdir,
-        num_parts
+        num_parts,
+        output_file_path
     );
 
     std::filesystem::remove_all(std::filesystem::path(tmpdir));
 
-    return result;
+    return;
 }
 
-std::vector<std::string> compute_parts_added_lines(
+void compute_parts_added_lines(
     int num_threads,
     std::string work_directory,
-    int num_parts
+    int num_parts,
+    std::filesystem::path output_file_path
 ) {
     tf::Taskflow taskflow;
 
-    std::vector<std::vector<std::string>> parts_results(num_parts);
+    FILE* output_file = fopen(output_file_path.c_str(), "w");
+    if (output_file == NULL) {
+    }
 
     for (int i = 0; i < num_parts; i++) {
         std::filesystem::path old_file_part_path = make_part_path(
@@ -96,31 +95,17 @@ std::vector<std::string> compute_parts_added_lines(
             i);
 
         taskflow.emplace(
-            [old_file_part_path, new_file_part_path, &parts_results, i] {
-                compute_added_lines(old_file_part_path, new_file_part_path, parts_results[i]);
+            [old_file_part_path, new_file_part_path, output_file] {
+                compute_added_lines(old_file_part_path, new_file_part_path, output_file);
             });
     }
 
     tf::Executor executor(num_threads);
     executor.run(taskflow).wait();
 
-    int total_num_results = 0;
-    for (int i = 0; i < num_parts; i++) {
-        total_num_results += parts_results[i].size();
-    }
+    fclose(output_file);
 
-    std::vector<std::string> results;
-
-    for (long unsigned int i = 0; i < parts_results.size(); i++)
-    {
-        for (std::string& s: parts_results[i]) {
-            results.push_back(s);
-        }
-
-        parts_results.erase(parts_results.begin() + i);
-    }
-
-    return results;
+    return;
 }
 
 int get_num_threads(
@@ -155,8 +140,8 @@ PYBIND11_MODULE(pydeduplines, m)
         &compute_files_added_lines,
         "Prints new lines that are in the new file and no in the original file.",
         pybind11::arg("original_file_path"),
-        pybind11::arg("new_file_path"),
+        pybind11::arg("changed_file_path"),
+        pybind11::arg("output_file_path"),
         pybind11::arg("memory_usage"),
-        pybind11::arg("num_threads")
-    );
+        pybind11::arg("num_threads"));
 }
