@@ -31,7 +31,9 @@ void compute_added_lines(
 
     int num_lines = std::count(original_file_data.begin(), original_file_data.end(), '\n');
 
-    phmap::flat_hash_set<std::string_view> lines_set(num_lines);
+    phmap::parallel_flat_hash_set<std::string_view> lines_set;
+
+    lines_set.reserve(num_lines);
 
     load_lines_from_file_to_set(original_file_data, lines_set);
 
@@ -43,7 +45,7 @@ void compute_added_lines(
 
 void write_file_lines_not_in_set_to_file(
     std::filesystem::path file_path,
-    phmap::flat_hash_set<std::string_view> &lines_set,
+    phmap::parallel_flat_hash_set<std::string_view> &lines_set,
     FILE* output
 )
 {
@@ -73,7 +75,7 @@ void write_file_lines_not_in_set_to_file(
 
 void check_file_lines_not_in_set(
     std::filesystem::path changed_file_path,
-    phmap::flat_hash_set<std::string_view> &lines_set,
+    phmap::parallel_flat_hash_set<std::string_view>& lines_set,
     std::vector<std::string>& result
 ) {
     FILE *change_file = fopen(changed_file_path.c_str(), "r");
@@ -105,7 +107,7 @@ void check_file_lines_not_in_set(
 
 void load_lines_from_file_to_set(
     std::vector<char>& data,
-    phmap::flat_hash_set<std::string_view> &lines_set
+    phmap::parallel_flat_hash_set<std::string_view> &lines_set
 ) {
     if (data.size() == 0) {
         return;
@@ -116,11 +118,15 @@ void load_lines_from_file_to_set(
     char *start = data.data();
     char *end;
 
+    int num_lines = 0;
     while(start < buffer_end) {
         end = strchr(start, '\n');
+
         lines_set.emplace(std::string_view(start, end - start));
 
         start = end + 1;
+
+        num_lines += 1;
     };
 }
 

@@ -11,9 +11,11 @@
 
 #include <taskflow/taskflow.hpp>
 
-#include <split_file.hpp>
-#include <compare_files.hpp>
-#include <pydeduplines.hpp>
+#include "parallel_hashmap/phmap.h"
+
+#include "split_file.hpp"
+#include "compare_files.hpp"
+#include "pydeduplines.hpp"
 
 
 std::filesystem::path make_part_path(
@@ -108,6 +110,13 @@ void compute_parts_added_lines(
     return;
 }
 
+unsigned long count_file_lines(std::string file_path) {
+    std::ifstream inFile(file_path);
+
+    return std::count(std::istreambuf_iterator<char>(inFile),
+               std::istreambuf_iterator<char>(), '\n');
+}
+
 int get_num_threads(
     int num_threads_suggestion
 ) {
@@ -121,16 +130,75 @@ int get_num_threads(
 
 int compute_num_parts(
     int num_threads,
-    std::filesystem::path old_file_path,
-    std::filesystem::path new_file_path,
-    int max_mem_mega_bytes
+    std::string old_file_path,
+    std::string new_file_path,
+    long max_mem_mega_bytes
 ) {
     auto file_size1 = std::filesystem::file_size(old_file_path);
     auto file_size2 = std::filesystem::file_size(new_file_path);
 
-    int num_parts = num_threads * 2 * (std::max(file_size1, file_size2) / (max_mem_mega_bytes));
+    auto num_lines1 = count_file_lines(old_file_path);
+
+    long hashtable_memory = num_lines1 * 23.7;
+
+    long total_memory = file_size1 + file_size2 + hashtable_memory;
+    long num_parts = num_threads * total_memory / max_mem_mega_bytes;
 
     return num_parts;
+}
+
+
+long process_mem_usage()
+{
+    using std::ifstream;
+    using std::ios_base;
+    using std::string;
+
+    long resident_set = 0;
+
+    ifstream stat_stream("/proc/self/stat", ios_base::in);
+
+    std::string pid, comm, state, ppid, pgrp, session, tty_nr;
+    std::string tpgid, flags, minflt, cminflt, majflt, cmajflt;
+    std::string utime, stime, cutime, cstime, priority, nice;
+    std::string O, itrealvalue, starttime;
+
+    unsigned long vsize;
+    long rss;
+
+    stat_stream >> pid >> comm >> state >> ppid >> pgrp >> session >> tty_nr >> tpgid >> flags >> minflt >> cminflt >> majflt >> cmajflt >> utime >> stime >> cutime >> cstime >> priority >> nice >> O >> itrealvalue >> starttime >> vsize >> rss; // don't care about the rest
+
+    stat_stream.close();
+
+    long page_size_kb = sysconf(_SC_PAGE_SIZE) / 1024; // in case x86-64 is configured to use 2MB pages
+
+    resident_set = rss * page_size_kb;
+
+    return resident_set;
+}
+
+long get_hashset_memory_usage(long num_entries)
+{
+    long mem_before = process_mem_usage();
+    phmap::parallel_flat_hash_set<std::string_view> lines_set(num_entries);
+    long mem_after = process_mem_usage();
+
+    return mem_after - mem_before;
+}
+
+long get_hashset_memory_usage2(long num_entries)
+{
+    char buffer[100];
+
+    long mem_before = process_mem_usage();
+    phmap::parallel_flat_hash_set<std::string_view> lines_set;
+    for (long i = 0; i < num_entries; i++) {
+        sprintf(buffer, "%ld", i);
+        lines_set.emplace(std::string_view(buffer));
+    }
+    long mem_after = process_mem_usage();
+
+    return mem_after - mem_before;
 }
 
 PYBIND11_MODULE(pydeduplines, m)
@@ -143,5 +211,35 @@ PYBIND11_MODULE(pydeduplines, m)
         pybind11::arg("changed_file_path"),
         pybind11::arg("output_file_path"),
         pybind11::arg("memory_usage"),
-        pybind11::arg("num_threads"));
+        pybind11::arg("num_threads")
+    );
+
+    m.def(
+        "count_file_lines",
+        &count_file_lines,
+        "Counts the number of lines in the file.",
+        pybind11::arg("file_path"));
+
+    m.def(
+        "compute_num_parts",
+        &compute_num_parts,
+        "Counts the number of lines in the file.",
+        pybind11::arg("num_threads"),
+        pybind11::arg("original_file_path"),
+        pybind11::arg("modified_file_path"),
+        pybind11::arg("max_memory_bytes")
+    );
+
+    m.def(
+        "get_hashset_memory_usage",
+        &get_hashset_memory_usage,
+        "get memory usage for benchmark",
+        pybind11::arg("num_entries")
+    );
+
+    m.def(
+        "get_hashset_memory_usage2",
+        &get_hashset_memory_usage2,
+        "get memory usage for benchmark",
+        pybind11::arg("num_entries"));
 }
